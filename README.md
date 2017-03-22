@@ -1,15 +1,7 @@
 # machine-learning-homework
 
-## task02
+## task03
 
-### color bar
+### tree
 
-![color-bar.png](color-bar.png)
-
-### before
-
-![superman-batman.png](superman-batman.png)
-
-### after
-
-![superman-batman16.png](superman-batman16.png)
+![tree.jpg](tree.jpg)
