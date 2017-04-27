@@ -1,56 +1,46 @@
-import numpy
-from PIL import Image
+from matplotlib.mlab import find
+import numpy as np
+import matplotlib.pyplot as plt
 
 
-def scale_to_unit_interval(ndar, eps=1e-8):
-    ndar = ndar.copy()
-    ndar -= ndar.min()
-    ndar *= 1.0 / (ndar.max() + eps)
-    return ndar
+def visualize(clf, X, Y, axis):
+    clf.fit(X, Y)
 
+    border = .5
+    h = .02
 
-def tile_raster_images(X, img_shape, tile_shape, tile_spacing=(0, 0),
-                       scale_rows_to_unit_interval=True,
-                       output_pixel_vals=True):
-    assert len(img_shape) == 2
-    assert len(tile_shape) == 2
-    assert len(tile_spacing) == 2
+    x_min, x_max = X[:, 0].min() - border, X[:, 0].max() + border
+    y_min, y_max = X[:, 1].min() - border, X[:, 1].max() + border
 
-    out_shape = [(ishp + tsp) * tshp - tsp for ishp, tshp, tsp
-                 in zip(img_shape, tile_shape, tile_spacing)]
-    H, W = img_shape
-    Hs, Ws = tile_spacing
+    xx, yy = np.meshgrid(np.arange(x_min, x_max, h), np.arange(y_min, y_max, h))
+    mesh = np.c_[xx.ravel(), yy.ravel()]
 
-    dt = X.dtype
-    if output_pixel_vals:
-        dt = 'uint8'
-    out_array = numpy.zeros(out_shape, dtype=dt)
+    z_class = clf.predict(mesh).reshape(xx.shape)
 
-    for tile_row in range(tile_shape[0]):
-        for tile_col in range(tile_shape[1]):
-            if tile_row * tile_shape[1] + tile_col < X.shape[0]:
-                this_x = X[tile_row * tile_shape[1] + tile_col]
-                if scale_rows_to_unit_interval:
-                    this_img = scale_to_unit_interval(
-                        this_x.reshape(img_shape))
-                else:
-                    this_img = this_x.reshape(img_shape)
-                c = 1
-                if output_pixel_vals:
-                    c = 255
-                out_array[
-                    tile_row * (H + Hs): tile_row * (H + Hs) + H,
-                    tile_col * (W + Ws): tile_col * (W + Ws) + W
-                ] = this_img * c
-    return out_array
+    # Put the result into a color plot
+    # fig = plt.figure(figsize=(8, 6))
+    axis.pcolormesh(xx, yy, z_class, cmap=plt.cm.summer, alpha=0.3)
 
+    # Plot hyperplane and margin
+    z_dist = clf.decision_function(mesh).reshape(xx.shape)
+    axis.contour(xx, yy, z_dist, [0.0], colors='black')
+    axis.contour(xx, yy, z_dist, [-1.0, 1.0], colors='black', linestyles='dashed')
 
-def visualize_mnist(train_X, filename):
-    images = train_X[0:2500, :]
-    image_data = tile_raster_images(images,
-                                    img_shape=[28, 28],
-                                    tile_shape=[50, 50],
-                                    tile_spacing=(2, 2))
-    im_new = Image.fromarray(numpy.uint8(image_data))
-    im_new.save(filename)
-    return im_new
+    # Plot also the training points
+    Y_pred = clf.predict(X)
+
+    ind_support = clf.ind_support
+    ind_correct = list(set(find(Y == Y_pred)) - set(ind_support))
+    ind_incorrect = list(set(find(Y != Y_pred)) - set(ind_support))
+
+    axis.scatter(X[ind_correct, 0], X[ind_correct, 1], c=Y[ind_correct], cmap=plt.cm.summer, alpha=0.9)
+    axis.scatter(X[ind_incorrect, 0], X[ind_incorrect, 1], c=Y[ind_incorrect], cmap=plt.cm.summer, alpha=0.9,
+                 marker='*',
+                 s=50)
+    axis.scatter(X[ind_support, 0], X[ind_support, 1], c=Y[ind_support], cmap=plt.cm.summer, alpha=0.9, linewidths=1.8,
+                 s=40)
+
+    axis.set_xlim(xx.min(), xx.max())
+    axis.set_ylim(yy.min(), yy.max())
+    axis.set_title("clf: {}, C: {}, kernel?: {}".format(clf.__class__.__name__, clf.C,
+                                                        clf.kernel.__name__ if hasattr(clf, "kernel") else "None"))
