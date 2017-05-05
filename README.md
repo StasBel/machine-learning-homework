@@ -11,3 +11,4 @@
 * [.gitignore](.gitignore) - files for git to ignore
 * [README.md](README.md) - git README file
 * [stas_belyaev_8.ipynb](stas_belyaev_8.ipynb) - main file with task
+* [boston.csv](boston.csv) - dataset
